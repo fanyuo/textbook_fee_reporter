@@ -218,6 +218,7 @@ def calculate_student_payments(book_data, student_records):
         student_totals = defaultdict(float)
         unmatched_records = []
 
+        flag_greedy = False
         for student in student_records:
             book_name = str(student['教材名称']).strip()
             fmt1_name = str_format_1(book_name)
@@ -230,6 +231,7 @@ def calculate_student_payments(book_data, student_records):
             elif fmt1_name in price_maps['fmt1_name']:
                 matched_price = price_maps['fmt1_name'][fmt1_name]
             elif fmt2_name in price_maps['fmt2_name']:
+                flag_greedy = True
                 matched_price = price_maps['fmt2_name'][fmt2_name]
 
             if matched_price is not None:
@@ -243,12 +245,12 @@ def calculate_student_payments(book_data, student_records):
             error_msg += "\n匹配顺序：1.原始名称 2.去除括号 3.去除括号及内容"
             raise ValueError(error_msg)
 
-        return [{'姓名': name, '购书费用': round(total, 2)} for name, total in student_totals.items()]
+        return [{'姓名': name, '购书费用': round(total, 6)} for name, total in student_totals.items()],flag_greedy
 
     except Exception as e:
         raise ValueError(f"计算购书费用失败: {str(e)}")
 
-def generate_report(book_data, student_records, student_payments):
+def generate_report(book_data, student_records, student_payments, flag_greedy=False):
     """生成并打印报表"""
     print("=" * 80)
     print("教材清单：")
@@ -276,6 +278,11 @@ def generate_report(book_data, student_records, student_payments):
         print(f"{payment['姓名']}: ￥{payment['购书费用']:.2f}")
         total_amount += payment['购书费用']
     print(f"总计: ￥{total_amount:.2f}")
+    if flag_greedy:
+        print("\n注意：因有些教材名称不是完全匹配的，此次运算过程中对于书名匹配采用了以下算法：")
+        print("1. 先去除括号及括号中的内容（包括中文括号和英文括号）")
+        print("2. 然后去除所有符号（只保留字母、数字和中文字符）")
+        print("3. 最后去除所有空格（包括全角空格）")
     print(f"请仔细核对程序计算的总金额与文件记录的合计金额是否一致，最终金额应以文件记录为准。")
 
 def main(book_sales_file, student_records_file, target_class):
@@ -296,11 +303,11 @@ def main(book_sales_file, student_records_file, target_class):
         print(f"成功读取 {len(student_records)} 条学生购书记录")
 
         print("开始计算购书费用...")
-        student_payments = calculate_student_payments(book_data, student_records)
+        student_payments, flag_greedy = calculate_student_payments(book_data, student_records)
         print("费用计算完成")
 
         # 生成报表
-        generate_report(book_data, student_records, student_payments)
+        generate_report(book_data, student_records, student_payments, flag_greedy)
 
     except FileNotFoundError as e:
         print(f"文件错误: {str(e)}")
@@ -317,6 +324,6 @@ if __name__ == "__main__":
     BOOK_SALES_FILE = "./书商售书单-在校生2025-2026学年第1学期教材统计表.xlsx"
     STUDENT_RECORDS_FILE = "./教务系统导出-在校生及2025年专升本同学-2025-2026学年第1学期教材统计表.xlsx"
 
-    TARGET_CLASS = "电气241"
+    TARGET_CLASS = "电气231"
 
     main(BOOK_SALES_FILE, STUDENT_RECORDS_FILE, TARGET_CLASS)
